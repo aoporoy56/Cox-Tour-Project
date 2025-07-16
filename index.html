@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Live Budget Viewer</title>
+  <style>
+    body { font-family: sans-serif; margin: 20px; background: #f9f9f9; }
+    table { border-collapse: collapse; margin-bottom: 30px; width: 100%; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+    th { background: #004080; color: white; }
+    .summary th { background: #ff9900; }
+    .expenses th { background: #006600; color: white; }
+    .total { background: #00e0e0; font-weight: bold; padding: 8px; text-align: center; }
+  </style>
+</head>
+<body>
+
+  <h1>Cox's Bazar Tour Summary</h1>
+
+  <h2>🧍 Members' Contribution</h2>
+  <table id="membersTable"></table>
+
+  <h2>💰 Budget Summary</h2>
+  <table id="budgetSummary" class="summary"></table>
+
+  <h2>🧾 Expenses</h2>
+  <table id="expensesTable" class="expenses"></table>
+  <div id="totalExpenses" class="total"></div>
+
+  <script>
+    const sheetURL = "https://docs.google.com/spreadsheets/d/1RKuKLaTHFWEN4_E6SDWz2RJ4b-hN0cvPYTi_4H3AteM/export?format=csv&gid=0";
+
+    fetch(sheetURL)
+      .then(res => res.text())
+      .then(csv => {
+        const rows = csv.trim().split("\n").map(r => r.split(","));
+
+        // 👥 Members (Rows 4-9, Col A-C) -> indexes 3 to 8
+        const members = rows.slice(3, 9).map(r => r.slice(0, 3));
+        const membersTable = document.getElementById("membersTable");
+        membersTable.innerHTML = `
+          <tr><th>Name</th><th>Given</th><th>Have to Pay</th></tr>
+          ${members.map(r => `<tr><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td></tr>`).join("")}
+        `;
+
+        // 💰 Budget Summary (Fixed cells)
+        // Adjust indexes if needed based on your CSV content
+        function getCell(row, col) {
+          return (rows[row] && rows[row][col]) ? rows[row][col] : "";
+        }
+
+        const budget = [
+          { label: "Total Budget", value: getCell(5,4) },        // Row 6, Col E (index 5,4)
+          { label: "Per Person", value: getCell(5,5) },          // Row 6, Col F
+          { label: "Remaining Balance", value: getCell(8,4) }    // Row 9, Col E
+        ];
+        const budgetTable = document.getElementById("budgetSummary");
+        budgetTable.innerHTML = budget.map(b => `<tr><th>${b.label}</th><td>${b.value}</td></tr>`).join("");
+
+        // 🧾 Expenses (From Row 18 onwards, Col A-B)
+        const expenses = [];
+        for (let i = 17; i < rows.length; i++) {
+          const row = rows[i];
+          if (row[0] && row[0].trim() !== "") {
+            expenses.push(row.slice(0, 2));
+          }
+        }
+        const expensesTable = document.getElementById("expensesTable");
+        expensesTable.innerHTML = `
+          <tr><th>Reason</th><th>Amount</th></tr>
+          ${expenses.map(r => `<tr><td>${r[0]}</td><td>${r[1]}</td></tr>`).join("")}
+        `;
+
+        // Calculate total expenses dynamically by summing all amounts
+        const totalAmount = expenses.reduce((sum, r) => {
+          const amount = parseFloat(r[1]) || 0;
+          return sum + amount;
+        }, 0);
+        document.getElementById("totalExpenses").textContent = "Total Expenses: " + totalAmount.toFixed(2);
+      })
+      .catch(err => {
+        console.error("Failed to load or parse CSV:", err);
+      });
+  </script>
+</body>
+</html>
