@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Live Budget Viewer</title>
+  <title>Cox's Bazar Tour Summary</title>
   <style>
     body { font-family: sans-serif; margin: 20px; background: #f9f9f9; }
     table { border-collapse: collapse; margin-bottom: 30px; width: 100%; }
@@ -10,55 +10,72 @@
     .summary th { background: #ff9900; }
     .expenses th { background: #006600; color: white; }
     .total { background: #00e0e0; font-weight: bold; padding: 8px; text-align: center; }
+
+    /* Different background colors for each summary row */
+    .per-person {
+      background-color: #ffdd57; /* bright yellow */
+      font-weight: bold;
+    }
+    .total-budget {
+      background-color: #87ceeb; /* sky blue */
+      font-weight: bold;
+    }
+    .remaining-balance {
+      background-color: #90ee90; /* light green */
+      font-weight: bold;
+    }
+    .total-expenses {
+      background-color: #ff9999; /* light red */
+      font-weight: bold;
+    }
   </style>
 </head>
 <body>
 
-  <h1>Cox's Bazar Tour Summary</h1>
+  <h1 id="pageTitle" style="text-align: center">Loading title...</h1>
 
   <h2>🧍 Members' Contribution</h2>
   <table id="membersTable"></table>
 
-  <h2>💰 Budget Summary</h2>
-  <table id="budgetSummary" class="summary"></table>
+  <h2>💰 Per Person</h2>
+  <table id="perPersonTable" class="summary"></table>
+
+  <h2>💰 Summary</h2>
+  <table id="summaryTable" class="summary"></table>
 
   <h2>🧾 Expenses</h2>
   <table id="expensesTable" class="expenses"></table>
-  <div id="totalExpenses" class="total"></div>
 
   <script>
     const sheetURL = "https://docs.google.com/spreadsheets/d/1RKuKLaTHFWEN4_E6SDWz2RJ4b-hN0cvPYTi_4H3AteM/export?format=csv&gid=0";
 
+    // Helper: trim surrounding quotes from a string if present
+    function trimQuotes(str) {
+      if (!str) return "";
+      return str.replace(/^"(.*)"$/, '$1');
+    }
+
     fetch(sheetURL)
       .then(res => res.text())
       .then(csv => {
-        const rows = csv.trim().split("\n").map(r => r.split(","));
+        // Basic CSV parsing (split lines and columns by commas)
+        const rows = csv.trim().split("\n").map(r => r.split(",").map(trimQuotes));
 
-        // 👥 Members (Rows 4-9, Col A-C) -> indexes 3 to 8
-        const members = rows.slice(3, 9).map(r => r.slice(0, 3));
+        // Set dynamic page title from A1 (row 0, col 0)
+        const pageTitle = document.getElementById("pageTitle");
+        pageTitle.textContent = rows[0][0] || "Cox's Bazar Tour Summary";
+
+        // 👥 Members (Rows 4-9, Col A-D)
+        const members = rows.slice(4, 10).map(r => r.slice(0, 4));
         const membersTable = document.getElementById("membersTable");
         membersTable.innerHTML = `
-          <tr><th>Name</th><th>Given</th><th>Have to Pay</th></tr>
-          ${members.map(r => `<tr><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td></tr>`).join("")}
+          <tr><th>Name</th><th>Given</th><th>Have to Pay</th><th>Due</th></tr>
+          ${members.map(r => `<tr><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td><td class="total-expenses">${r[3]}</td></tr>`).join("")}
         `;
 
-        // 💰 Budget Summary (Fixed cells)
-        // Adjust indexes if needed based on your CSV content
-        function getCell(row, col) {
-          return (rows[row] && rows[row][col]) ? rows[row][col] : "";
-        }
-
-        const budget = [
-          { label: "Total Budget", value: getCell(5,4) },        // Row 6, Col E (index 5,4)
-          { label: "Per Person", value: getCell(5,5) },          // Row 6, Col F
-          { label: "Remaining Balance", value: getCell(8,4) }    // Row 9, Col E
-        ];
-        const budgetTable = document.getElementById("budgetSummary");
-        budgetTable.innerHTML = budget.map(b => `<tr><th>${b.label}</th><td>${b.value}</td></tr>`).join("");
-
-        // 🧾 Expenses (From Row 18 onwards, Col A-B)
+        // 🧾 Expenses (From Row 19 onwards, Col A-B)
         const expenses = [];
-        for (let i = 17; i < rows.length; i++) {
+        for (let i = 19; i < rows.length; i++) {
           const row = rows[i];
           if (row[0] && row[0].trim() !== "") {
             expenses.push(row.slice(0, 2));
@@ -71,14 +88,38 @@
         `;
 
         // Calculate total expenses dynamically by summing all amounts
-        const totalAmount = expenses.reduce((sum, r) => {
+        const totalExpenses = expenses.reduce((sum, r) => {
           const amount = parseFloat(r[1]) || 0;
           return sum + amount;
         }, 0);
-        document.getElementById("totalExpenses").textContent = "Total Expenses: " + totalAmount.toFixed(2);
+
+        // Helper to safely get a cell value (already trimmed)
+        function getCell(row, col) {
+          return (rows[row] && rows[row][col]) ? rows[row][col] : "";
+        }
+
+        const perPerson = getCell(6, 5);          // Row 6, Col F (index 5,5)
+        const totalBudget = getCell(6, 4);        // Row 6, Col E (index 5,4)
+        const remainingBalance = getCell(9, 4);   // Row 9, Col E (index 8,4)
+
+        // 💰 Separate Per Person Table
+        const perPersonTable = document.getElementById("perPersonTable");
+        perPersonTable.innerHTML = `
+          <tr class="per-person"><th>Per Person</th><td>${perPerson}</td></tr>
+        `;
+
+        // 💰 Summary Table for the rest
+        const summaryTable = document.getElementById("summaryTable");
+        summaryTable.innerHTML = `
+          <tr class="total-budget"><th>Total Budget</th><td>${totalBudget}</td></tr>
+          <tr class="total-expenses"><th>Total Expenses</th><td>${totalExpenses.toFixed(0)}</td></tr>
+          <tr class="remaining-balance"><th>Remaining Balance</th><td>${remainingBalance}</td></tr>
+        `;
       })
       .catch(err => {
         console.error("Failed to load or parse CSV:", err);
+        const pageTitle = document.getElementById("pageTitle");
+        pageTitle.textContent = "Failed to load data";
       });
   </script>
 </body>
