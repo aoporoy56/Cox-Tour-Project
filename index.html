@@ -66,11 +66,11 @@
         pageTitle.textContent = rows[0][0] || "Cox's Bazar Tour Summary";
 
         // 👥 Members (Rows 4-9, Col A-D)
-        const members = rows.slice(4, 10).map(r => r.slice(0, 4));
+        const members = rows.slice(4, 10).map(r => r.slice(0, 3));
         const membersTable = document.getElementById("membersTable");
         membersTable.innerHTML = `
-          <tr><th>Name</th><th>Given</th><th>Have to Pay</th><th>Due</th></tr>
-          ${members.map(r => `<tr><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td><td class="total-expenses">${r[3]}</td></tr>`).join("")}
+          <tr><th>Name</th><th>Given</th><th>Have to Pay</th></tr>
+          ${members.map(r => `<tr><td>${r[0]}</td><td>${r[1]}</td><td class="total-expenses">${r[2]}</td></tr>`).join("")}
         `;
 
         // 🧾 Expenses (From Row 19 onwards, Col A-B)
